@@ -56,9 +56,9 @@ const WhatIfSandbox: React.FC<{
             return {};
         }
         const sortedRisks = [...risks].sort((a, b) => a.scoreImpact - b.scoreImpact);
-        // FIX: Explicitly typed the `acc` parameter in the reduce function to ensure TypeScript correctly
-        // infers the return type. This resolves the error where `riskList.map` could not be called
-        // because `riskList` was of type `unknown`.
+        // FIX: The initial value of reduce must match the accumulator type.
+        // Casting `{}` to the correct type and typing the accumulator parameter `acc`
+        // resolves the type inference issue, preventing `riskList` from being `unknown`.
         return sortedRisks.reduce((acc: Record<string, RiskFactor[]>, risk) => {
             const category = risk.category || 'Other';
             if (!acc[category]) {
@@ -66,7 +66,7 @@ const WhatIfSandbox: React.FC<{
             }
             acc[category].push(risk);
             return acc;
-        }, {});
+        }, {} as Record<string, RiskFactor[]>);
     }, [risks]);
 
 

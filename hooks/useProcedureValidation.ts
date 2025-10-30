@@ -52,7 +52,7 @@ export const useProcedureValidation = (procedure: Procedure, primaryPayerName: s
             }
         }, 800);
         
-        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'authDetails', data: { ...currentAuthDetails, loading: true, key } } });
+        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'authDetails', data: { loading: true, data: null, error: null, key } } });
 
         return () => { mounted = false; clearTimeout(handler); };
     }, [id, cptCode, dispatch]);
@@ -84,7 +84,7 @@ export const useProcedureValidation = (procedure: Procedure, primaryPayerName: s
             }
         }, 900);
         
-        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'payerIntel', data: { ...currentPayerIntel, loading: true, key } } });
+        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'payerIntel', data: { loading: true, data: null, error: null, key } } });
 
         return () => { mounted = false; clearTimeout(handler); };
     }, [id, cptCode, primaryPayerName, dispatch]);
@@ -117,7 +117,7 @@ export const useProcedureValidation = (procedure: Procedure, primaryPayerName: s
             }
         }, 800);
         
-        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'necessityDetails', data: { ...currentNecessityDetails, loading: true, key } } });
+        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'necessityDetails', data: { loading: true, data: null, error: null, key } } });
 
         return () => { mounted = false; clearTimeout(handler); };
     }, [id, cptCode, dxCode, primaryPayerName, dispatch]);
@@ -150,7 +150,7 @@ export const useProcedureValidation = (procedure: Procedure, primaryPayerName: s
             }
         }, 1000);
         
-        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'policyDetails', data: { ...currentPolicyDetails, loading: true, key } } });
+        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'policyDetails', data: { loading: true, data: null, error: null, key } } });
 
         return () => { mounted = false; clearTimeout(handler); };
     }, [id, cptCode, dxCode, primaryPayerName, dispatch]);
@@ -182,7 +182,7 @@ export const useProcedureValidation = (procedure: Procedure, primaryPayerName: s
             }
         }, 1100);
         
-        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'icdSuggestions', data: { ...currentIcdSuggestions, loading: true, key } } });
+        dispatch({ type: 'UPDATE_PROCEDURE_VALIDATION', payload: { id, field: 'icdSuggestions', data: { loading: true, data: null, error: null, key } } });
 
         return () => { mounted = false; clearTimeout(handler); };
     }, [id, cptCode, dxCode, dispatch]);

@@ -6,7 +6,9 @@ import { INSURANCE_PAYERS, PayerType, CobMethod } from '../constants';
 const firstNames = ['Eleanor', 'David', 'Maria', 'Thomas', 'Sophia', 'James', 'Isabella', 'William', 'Olivia', 'John', 'Emma', 'Liam', 'Ava', 'Noah', 'Mia', 'Lucas'];
 const lastNames = ['Vance', 'Chen', 'Garcia', 'Anderson', 'Smith', 'Jones', 'Brown', 'Davis', 'Miller', 'Wilson', 'Moore', 'Taylor', 'Lee', 'Walker', 'Hall'];
 // FIX: Added the required 'phone' property to match the MetaData.provider type.
+const fixedProvider = { name: 'Dr. Kara Ewing', npi: '1528208204', phone: '(555) 123-4567' };
 const providers = [
+    fixedProvider,
     { name: 'Dr. Montague', npi: '1987654321', phone: '(555) 111-2222' },
     { name: 'Dr. Emily Carter', npi: '1234567893', phone: '(555) 555-5555' },
     { name: 'Dr. Smith', npi: '1234567890', phone: '(555) 555-5555' },
@@ -89,7 +91,7 @@ const createPayer = (rank: 'Primary' | 'Secondary' | 'Tertiary', procedures: Pro
 export const createNewWorklistPatient = (): WorklistPatient => {
     const randomProcedureInfo = getRandomItem(proceduresList);
     const procedures = [createDefaultProcedure(randomProcedureInfo)];
-    const provider = getRandomItem(providers);
+    const provider = fixedProvider; // Always use the fixed provider
     const practice = getRandomItem(practices);
     const serviceDate = new Date();
     serviceDate.setDate(serviceDate.getDate() + Math.floor(Math.random() * 60) - 15); // -15 to +45 days from now
