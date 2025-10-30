@@ -316,8 +316,8 @@ export interface CaseEvent {
 
 interface TopFactor {
   feature: string;
-  value?: string;
-  impact?: string;
+  value: string | number | null;
+  impact: number;
 }
 
 interface NextBestAction {
@@ -329,6 +329,8 @@ interface PriorityDetails {
   score: number;
   topFactors: TopFactor[];
   nextBestAction: NextBestAction;
+  modelConfidence?: number;
+  percentileRank?: number;
 }
 
 export interface WorklistPatient {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { WorklistPatient, SortKey, CaseStatus } from '../../../types';
 import { formatRelativeTime, formatDate } from '../../../utils/formatters';
-import { MoreHorizontal, FileCheck, PlusCircle, CheckSquare, UserPlus, Star, Copy, Info, ArrowUp, ArrowDown, ChevronDown, ChevronUp, FlaskConical, TrendingUp } from 'lucide-react';
+import { MoreHorizontal, FileCheck, PlusCircle, CheckSquare, UserPlus, Star, Copy, Info, ArrowUp, ArrowDown, ChevronDown, ChevronUp, FlaskConical, TrendingUp, TrendingDown, ArrowRightCircle } from 'lucide-react';
 
 interface WorklistTableProps {
   patients: WorklistPatient[];
@@ -17,6 +17,7 @@ interface WorklistTableProps {
   onTogglePin: (patientId: string) => void;
   isPrioritySortMode: boolean;
   onOpenDispositionModal: (patient: WorklistPatient) => void;
+  showToast: (message: string) => void;
 }
 
 const getStatusPillStyles = (status: CaseStatus) => {
@@ -82,7 +83,16 @@ const TimeToService: React.FC<{ dos: string }> = ({ dos }) => {
     );
 };
 
-const ActionsMenu: React.FC<{ patient: WorklistPatient; onOpenDispositionModal: (patient: WorklistPatient) => void }> = ({ patient, onOpenDispositionModal }) => {
+interface ActionsMenuProps {
+    patient: WorklistPatient;
+    onOpenDispositionModal: (patient: WorklistPatient) => void;
+    onAssignUser: (patientId: string, assigneeName: string) => void;
+    onTogglePin: (patientId: string) => void;
+    isPinned: boolean;
+    showToast: (message: string) => void;
+}
+
+const ActionsMenu: React.FC<ActionsMenuProps> = ({ patient, onOpenDispositionModal, onAssignUser, onTogglePin, isPinned, showToast }) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const menuRef = React.useRef<HTMLDivElement>(null);
 
@@ -95,10 +105,35 @@ const ActionsMenu: React.FC<{ patient: WorklistPatient; onOpenDispositionModal: 
     const handleActionClick = (e: React.MouseEvent, action: string) => {
         e.stopPropagation();
         setIsOpen(false);
-        if (action === 'mark-complete') {
-            onOpenDispositionModal(patient);
-        } else {
-            console.log(action);
+        switch (action) {
+            case 'mark-complete':
+                onOpenDispositionModal(patient);
+                break;
+            case 'request-eb':
+                showToast(`E&B request sent for ${patient.metaData.patient.name}.`);
+                break;
+            case 'add-note':
+                const note = prompt(`Enter note for case ${patient.id}:`);
+                if (note) {
+                    showToast(`Note added to case ${patient.id}.`);
+                }
+                break;
+            case 'assign-me':
+                const currentUser = 'Maria Garcia'; // Current user assumed
+                onAssignUser(patient.id, currentUser);
+                showToast(`Case assigned to ${currentUser}.`);
+                break;
+            case 'pin-top':
+                onTogglePin(patient.id);
+                showToast(`Case ${isPinned ? 'unpinned' : 'pinned'} successfully.`);
+                break;
+            case 'copy-id':
+                navigator.clipboard.writeText(patient.id)
+                    .then(() => showToast('Case ID copied to clipboard!'))
+                    .catch(() => alert('Failed to copy ID.'));
+                break;
+            default:
+                console.log(`Action "${action}" not implemented.`);
         }
     };
 
@@ -111,7 +146,7 @@ const ActionsMenu: React.FC<{ patient: WorklistPatient; onOpenDispositionModal: 
                     <li onClick={(e) => handleActionClick(e, 'request-eb')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"><FileCheck className="h-4 w-4 mr-2" />Request E&B</li>
                     <li onClick={(e) => handleActionClick(e, 'add-note')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"><PlusCircle className="h-4 w-4 mr-2" />Add Note</li>
                     <li onClick={(e) => handleActionClick(e, 'assign-me')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"><UserPlus className="h-4 w-4 mr-2" />Assign to Me</li>
-                    <li onClick={(e) => handleActionClick(e, 'pin-top')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"><Star className="h-4 w-4 mr-2" />Pin to Top</li>
+                    <li onClick={(e) => handleActionClick(e, 'pin-top')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"><Star className="h-4 w-4 mr-2" />{isPinned ? 'Unpin' : 'Pin to Top'}</li>
                     <li onClick={(e) => handleActionClick(e, 'copy-id')} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"><Copy className="h-4 w-4 mr-2" />Copy Patient ID</li>
                 </ul></div>
             )}
@@ -139,36 +174,79 @@ const SortableHeader: React.FC<{
 const XaiDetailPanel: React.FC<{ patient: WorklistPatient }> = ({ patient }) => {
     if (!patient.priorityDetails) return null;
 
+    const { score, topFactors, nextBestAction, modelConfidence, percentileRank } = patient.priorityDetails;
+    const positiveFactors = topFactors.filter(f => f.impact > 0).sort((a, b) => b.impact - a.impact);
+    const negativeFactors = topFactors.filter(f => f.impact < 0).sort((a, b) => a.impact - b.impact);
+
     return (
-        <div className="bg-blue-50/50 p-4 border-l-4 border-blue-300">
-            <h4 className="font-bold text-sm text-blue-800 mb-2">Why is this case prioritized?</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Top Factors (SHAP)</p>
-                    <ul className="space-y-1">
-                        {patient.priorityDetails.topFactors.map(factor => (
-                            <li key={factor.feature} className="flex justify-between items-center text-sm p-1 bg-white/50 rounded">
-                                <span className="text-gray-700">{factor.feature}</span>
-                                <span className={`font-semibold ${factor.value ? 'text-green-700' : 'text-gray-600'}`}>
-                                    {factor.value || factor.impact}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-                 <div>
-                    <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Model-Driven Next Best Action</p>
-                    <div className="p-2 bg-white rounded border border-blue-200">
-                        <p className="text-sm font-semibold text-blue-900">{patient.priorityDetails.nextBestAction.display_text}</p>
+        <div className="bg-slate-50 p-4 border-t-2 border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                
+                {/* Left Section: Score & Stats */}
+                <div className="md:col-span-3 text-center md:text-left border-r md:pr-6 border-slate-200">
+                    <p className="text-xs font-semibold text-gray-500 uppercase">Priority Score</p>
+                    <p className="text-5xl font-extrabold text-blue-600 my-1">{score.toFixed(1)}</p>
+                    <div className="space-y-2 text-xs text-gray-600">
+                        <div className="flex justify-between"><span>Model Confidence:</span> <span className="font-semibold">{modelConfidence ? `${(modelConfidence * 100).toFixed(0)}%` : 'N/A'}</span></div>
+                        <div className="flex justify-between"><span>Percentile Rank:</span> <span className="font-semibold">{percentileRank ? `${percentileRank}th` : 'N/A'}</span></div>
                     </div>
                 </div>
+
+                {/* Center Section: Factors */}
+                <div className="md:col-span-6">
+                     <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Critical Factors (Audit Trail)</p>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <h5 className="font-semibold text-sm text-green-700 flex items-center mb-1"><TrendingUp className="h-4 w-4 mr-1"/> Positive Drivers</h5>
+                            <ul className="space-y-1">
+                                {positiveFactors.map((factor, i) => (
+                                    <li key={i} className="text-sm p-1.5 bg-green-50 rounded-md flex justify-between">
+                                        <div>
+                                            <span className="text-gray-800">{factor.feature}</span>
+                                            {factor.value && <span className="text-gray-500 text-xs ml-2">({factor.value})</span>}
+                                        </div>
+                                        <span className="font-bold text-green-600">+{factor.impact.toFixed(1)}</span>
+                                    </li>
+                                ))}
+                                 {positiveFactors.length === 0 && <li className="text-xs text-gray-500 p-1.5">No positive drivers identified.</li>}
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 className="font-semibold text-sm text-red-700 flex items-center mb-1"><TrendingDown className="h-4 w-4 mr-1"/> Negative Drivers</h5>
+                            <ul className="space-y-1">
+                                {negativeFactors.map((factor, i) => (
+                                    <li key={i} className="text-sm p-1.5 bg-red-50 rounded-md flex justify-between">
+                                        <div>
+                                            <span className="text-gray-800">{factor.feature}</span>
+                                            {factor.value && <span className="text-gray-500 text-xs ml-2">({factor.value})</span>}
+                                        </div>
+                                        <span className="font-bold text-red-600">{factor.impact.toFixed(1)}</span>
+                                    </li>
+                                ))}
+                                {negativeFactors.length === 0 && <li className="text-xs text-gray-500 p-1.5">No negative drivers identified.</li>}
+                            </ul>
+                        </div>
+                     </div>
+                </div>
+
+                {/* Right Section: Next Best Action */}
+                <div className="md:col-span-3 md:border-l md:pl-6 border-slate-200 flex flex-col">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Next Best Action</p>
+                    <div className="p-3 bg-white rounded-lg border border-blue-300 shadow-sm flex-grow flex flex-col justify-center">
+                        <p className="text-base font-semibold text-blue-900 flex items-center">
+                            <ArrowRightCircle className="h-5 w-5 mr-2 text-blue-600 flex-shrink-0" />
+                            <span>{nextBestAction.display_text}</span>
+                        </p>
+                    </div>
+                </div>
+
             </div>
         </div>
     );
 };
 
 
-const WorklistTable: React.FC<WorklistTableProps> = ({ patients, onSelectPatient, selectedRows, onToggleRow, onToggleAllRows, sortConfig, onSort, activeRowIndex, onAssignUser, pinnedRows, onTogglePin, isPrioritySortMode, onOpenDispositionModal }) => {
+const WorklistTable: React.FC<WorklistTableProps> = ({ patients, onSelectPatient, selectedRows, onToggleRow, onToggleAllRows, sortConfig, onSort, activeRowIndex, onAssignUser, pinnedRows, onTogglePin, isPrioritySortMode, onOpenDispositionModal, showToast }) => {
     const isAllOnPageSelected = patients.length > 0 && patients.every(p => selectedRows.has(p.id));
     const teamMembers = ['Maria Garcia', 'David Chen', 'Unassigned'];
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -231,7 +309,7 @@ const WorklistTable: React.FC<WorklistTableProps> = ({ patients, onSelectPatient
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 align-top" onClick={(e) => e.stopPropagation()}><select value={patient.assignedTo.name} onChange={(e) => onAssignUser(patient.id, e.target.value)} className="bg-white text-gray-900 text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"><option value="Unassigned">Unassigned</option>{teamMembers.map(name => <option key={name} value={name}>{name}</option>)}</select></td>
                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 align-top">{patient.estimateStatus}</td>
-                            <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium align-top"><div className={`transition-opacity ${index === activeRowIndex ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'}`} onClick={(e) => e.stopPropagation()}><ActionsMenu patient={patient} onOpenDispositionModal={onOpenDispositionModal} /></div></td>
+                            <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium align-top"><div className={`transition-opacity ${index === activeRowIndex ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-within:opacity-100'}`} onClick={(e) => e.stopPropagation()}><ActionsMenu patient={patient} onOpenDispositionModal={onOpenDispositionModal} onAssignUser={onAssignUser} onTogglePin={onTogglePin} isPinned={isPinned} showToast={showToast} /></div></td>
                         </tr>
                         {isExpanded && (
                             <tr className={`${index === activeRowIndex ? 'bg-blue-100' : ''} ${isPinned ? 'bg-yellow-50/50' : ''}`}>

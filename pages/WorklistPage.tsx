@@ -468,6 +468,7 @@ const WorklistPage: React.FC = () => {
                                 onTogglePin={handleTogglePin}
                                 isPrioritySortMode={isPrioritySortMode}
                                 onOpenDispositionModal={handleOpenDispositionModal}
+                                showToast={showToast}
                             />
                             <PaginationControls 
                                 currentPage={currentPage}

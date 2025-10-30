@@ -1,6 +1,6 @@
 // @ts-nocheck
 // FIX: PayerType and CobMethod are enums (values) and should be imported from constants.ts, not types.ts.
-import { WorklistPatient, CaseStatus, CaseEvent, Procedure, Benefits, Accumulators, Payer, MetaData } from '../types';
+import { WorklistPatient, CaseStatus, CaseEvent, Procedure, Benefits, Accumulators, Payer, MetaData, PriorityDetails, TopFactor } from '../types';
 import { INSURANCE_PAYERS, PayerType, CobMethod } from '../constants';
 
 const firstNames = ['Eleanor', 'David', 'Maria', 'Thomas', 'Sophia', 'James', 'Isabella', 'William', 'Olivia', 'John', 'Emma', 'Liam', 'Ava', 'Noah', 'Mia', 'Lucas'];
@@ -88,6 +88,55 @@ const createPayer = (rank: 'Primary' | 'Secondary' | 'Tertiary', procedures: Pro
     ...overrides,
 });
 
+const generatePriorityDetails = (patient: { procedures: Procedure[], metaData: MetaData, payers: Payer[] }): PriorityDetails => {
+    let baseScore = 50;
+    const factors: TopFactor[] = [];
+
+    // Potential Factors
+    const primaryProcedure = patient.procedures[0];
+    if (primaryProcedure) {
+        const billed = Number(primaryProcedure.billedAmount);
+        if (billed > 10000) {
+            factors.push({ feature: 'Procedure Cost', value: `$${billed.toLocaleString()}`, impact: 25.5 });
+        } else if (billed > 1000) {
+            factors.push({ feature: 'Procedure Cost', value: `$${billed.toLocaleString()}`, impact: 10.2 });
+        }
+    }
+
+    if (patient.procedures.length > 1) {
+        factors.push({ feature: 'Multiple Procedures', value: patient.procedures.length, impact: 8.0 });
+    }
+    
+    const serviceDate = new Date(patient.metaData.service.date);
+    const today = new Date();
+    const daysUntilService = (serviceDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
+
+    if (daysUntilService < 3) {
+         factors.push({ feature: 'Time to Service', value: `${Math.round(daysUntilService)} days`, impact: 22.1 });
+    } else if (daysUntilService < 7) {
+        factors.push({ feature: 'Time to Service', value: `${Math.round(daysUntilService)} days`, impact: 15.3 });
+    }
+
+    if (patient.payers[0]?.networkStatus === 'out-of-network') {
+        factors.push({ feature: 'Network Status', value: 'Out-of-Network', impact: 12.5 });
+    }
+
+    // A random negative factor for variety
+    if (Math.random() < 0.2) {
+        factors.push({ feature: 'Payer Timely Filing Risk', value: 'High', impact: -7.8 });
+    }
+
+    const finalScore = baseScore + factors.reduce((sum, f) => sum + f.impact, 0);
+
+    return {
+        score: parseFloat(finalScore.toFixed(2)),
+        topFactors: factors.sort((a,b) => Math.abs(b.impact) - Math.abs(a.impact)), // sort by absolute impact
+        nextBestAction: { code: 'RUN_ELIGIBILITY', display_text: 'Run full eligibility check' },
+        modelConfidence: parseFloat((0.85 + Math.random() * 0.14).toFixed(2)), // 0.85 - 0.99
+        percentileRank: Math.floor(80 + Math.random() * 20), // 80 - 99
+    };
+};
+
 export const createNewWorklistPatient = (): WorklistPatient => {
     const randomProcedureInfo = getRandomItem(proceduresList);
     const procedures = [createDefaultProcedure(randomProcedureInfo)];
@@ -110,6 +159,14 @@ export const createNewWorklistPatient = (): WorklistPatient => {
     const assignedTo = getRandomItem(teamMembers);
     const statusOptions = [CaseStatus.NEW, CaseStatus.ACTIVE, CaseStatus.PENDING_EXTERNAL, CaseStatus.WAITING_INTERNAL, CaseStatus.ACTIVE, CaseStatus.NEW]; // Skew towards open
     const status = getRandomItem(statusOptions);
+    
+    const worklistPatientBase = {
+        metaData: meta,
+        payers,
+        procedures,
+    };
+    
+    const priorityDetails = generatePriorityDetails(worklistPatientBase);
 
     return {
         id: `CASE-${String(Math.floor(Math.random() * 9000) + 1000)}`,
@@ -122,11 +179,7 @@ export const createNewWorklistPatient = (): WorklistPatient => {
         lastUpdated: new Date().toISOString(),
         lastWorkedBy: getRandomItem(teamMembers.filter(t => t.name !== 'Unassigned')),
         assignedTo: assignedTo,
-        priorityDetails: {
-            score: Math.random() * 40 + 60, // 60-100
-            topFactors: [{ feature: 'High $ Procedure' }, { feature: 'New Patient' }],
-            nextBestAction: { code: 'RUN_ELIGIBILITY', display_text: 'Run full eligibility check' }
-        },
+        priorityDetails: priorityDetails,
         isExplorationItem: Math.random() > 0.8,
         status,
         events,

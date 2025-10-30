@@ -47,7 +47,7 @@ const AppContent: React.FC<EstimateCalculatorAppProps> = ({ patientData, onMarkC
 
     useEffect(() => {
         dispatch({ type: 'PREFILL_FORM', payload: patientData });
-    }, [dispatch]);
+    }, []);
 
     return (
         <div className="bg-gray-50 min-h-full text-gray-900 flex flex-col">
